@@ -4,19 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stok Asistani</title>
-
 <style>
 body{
   margin:0;
-  font-family:Arial,Helvetica,sans-serif;
+  font-family:Arial, sans-serif;
   background:#0b1220;
   color:#e6f0ff;
-  display:flex;
-  justify-content:center;
 }
 .app{
-  width:100%;
-  max-width:520px;
+  max-width:480px;
+  margin:auto;
   padding:20px;
 }
 h1{
@@ -24,14 +21,15 @@ h1{
   color:#38bdf8;
 }
 #mic{
-  width:100px;height:100px;
-  margin:20px auto;
+  width:90px;
+  height:90px;
   border-radius:50%;
   background:#0ea5e9;
+  margin:20px auto;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:46px;
+  font-size:40px;
   cursor:pointer;
 }
 #mic.listening{
@@ -39,138 +37,142 @@ h1{
 }
 @keyframes pulse{
   0%{box-shadow:0 0 10px #38bdf8}
-  50%{box-shadow:0 0 35px #38bdf8}
+  50%{box-shadow:0 0 30px #38bdf8}
   100%{box-shadow:0 0 10px #38bdf8}
 }
 input{
   width:100%;
-  padding:14px;
-  border-radius:12px;
-  border:none;
+  padding:12px;
   font-size:16px;
+  border-radius:10px;
+  border:none;
 }
 #out{
   margin-top:15px;
   background:#020617;
   padding:15px;
-  border-radius:12px;
-  min-height:90px;
+  border-radius:10px;
+  min-height:80px;
 }
 </style>
 </head>
 
 <body>
 <div class="app">
-<h1>🎙️ Stok Asistani</h1>
+  <h1>🎙️ Stok Asistani</h1>
 
-<div id="mic">🎤</div>
+  <div id="mic">🎤</div>
 
-<input id="txt" placeholder="Stok kodu, ürün adı veya sohbet yaz..." />
+  <input id="txt" placeholder="Stok kodu, ürün adı veya sohbet yaz..." />
 
-<div id="out">Hazırım.</div>
+  <div id="out">Hazırım.</div>
 </div>
 
 <script>
-// ================== GOMULU VERI ==================
-const RAW = `
-MAMUL	00201306090	ACI BİBER 100 LUK TÜM  100 G ORTA PET (K332)
-`;
+// ================= VERI =================
+const STOCKS = [
+  {
+    grup: "MAMUL",
+    kod: "00201306090",
+    ad: "ACI BİBER 100 LUK TÜM 100 G ORTA PET (K332)"
+  }
+];
 
-const STOCKS = RAW.trim().split("\n").map(l=>{
-  const p=l.split("\t");
-  return { grup:p[0], kod:p[1], ad:p[2] };
-});
-
-// ================== SES ==================
-function speak(t){
-  const u=new SpeechSynthesisUtterance(t);
-  u.lang="tr-TR";
+// ================= SES =================
+function speak(text){
+  if(!window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "tr-TR";
   speechSynthesis.cancel();
   speechSynthesis.speak(u);
 }
 
-// ================== AKAN YAZI ==================
-function type(text){
-  out.innerText="";
-  let i=0;
-  const timer=setInterval(()=>{
-    out.innerText+=text[i];
+// ================= AKAN YAZI =================
+function write(text){
+  out.innerText = "";
+  let i = 0;
+  const t = setInterval(()=>{
+    out.innerText += text[i];
     i++;
-    if(i>=text.length) clearInterval(timer);
-  },20);
+    if(i >= text.length) clearInterval(t);
+  }, 20);
 }
 
-// ================== STOK OKUMA ==================
-function readStockCode(code){
-  let res=[];
-  for(let i=0;i<code.length;i+=2){
-    const g=code.substring(i,i+2);
-    if(g[0]==="0") res.push("sıfır "+digit(g[1]));
-    else res.push(twoDigit(g));
+// ================= SAYI OKUMA =================
+const birler = ["","bir","iki","üç","dört","beş","altı","yedi","sekiz","dokuz"];
+const onlar = ["","on","yirmi","otuz","kırk","elli","altmış","yetmiş","seksen","doksan"];
+
+function ikiHane(n){
+  if(n[0]==="0") return "sıfır " + birler[n[1]];
+  return onlar[n[0]] + (n[1]!=="0" ? " " + birler[n[1]] : "");
+}
+
+function stokKoduOku(kod){
+  let sonuc = [];
+  for(let i=0;i<kod.length;i+=2){
+    sonuc.push(ikiHane(kod.substring(i,i+2)));
   }
-  return res.join(" , ");
+  return sonuc.join(" , ");
 }
 
-function digit(d){
-  return ["","bir","iki","üç","dört","beş","altı","yedi","sekiz","dokuz"][d];
-}
-function twoDigit(n){
-  const t=["","on","yirmi","otuz","kırk","elli","altmış","yetmiş","seksen","doksan"];
-  return t[n[0]]+(n[1]!=="0"?" "+digit(n[1]]:"");
-}
-
-// ================== ANALIZ ==================
+// ================= ANALIZ =================
 function analyze(q){
-  q=q.toLowerCase();
+  q = q.toLowerCase();
 
   // sohbet
   if(q.includes("nasılsın")){
-    type("İyiyim, teşekkür ederim. Sana stok bilgisi vermek için buradayım.");
-    speak("İyiyim, teşekkür ederim. Sana stok bilgisi vermek için buradayım.");
+    const t = "İyiyim, teşekkür ederim. Sana stok bilgisi verebilirim.";
+    write(t);
+    speak(t);
     return;
   }
 
-  // stok
-  let found=null;
+  let found = null;
   STOCKS.forEach(s=>{
     if(q.includes(s.kod) || s.ad.toLowerCase().includes(q)){
-      found=s;
+      found = s;
     }
   });
 
   if(!found){
-    type("Eşleşme bulamadım. Tekrar dener misin?");
+    write("Eşleşme bulamadım. Tekrar dener misin?");
     speak("Eşleşme bulamadım.");
     return;
   }
 
-  const spokenCode = readStockCode(found.kod);
-  const text = `${found.grup}. Stok kodu ${spokenCode}. Ürün ${found.ad}.`;
-  type(text);
+  const okunanKod = stokKoduOku(found.kod);
+  const text = `${found.grup}. Stok kodu ${okunanKod}. Ürün ${found.ad}.`;
+  write(text);
   speak(text);
 }
 
-// ================== MANUEL ==================
+// ================= MANUEL =================
 txt.addEventListener("keydown",e=>{
-  if(e.key==="Enter") analyze(e.target.value);
+  if(e.key==="Enter"){
+    analyze(e.target.value);
+    txt.value="";
+  }
 });
 
-// ================== MIKROFON ==================
+// ================= MIKROFON =================
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if(SR){
   const rec = new SR();
-  rec.lang="tr-TR";
-  mic.onclick=()=>{
+  rec.lang = "tr-TR";
+
+  mic.onclick = ()=>{
     mic.classList.add("listening");
     rec.start();
   };
-  rec.onresult=e=>{
+
+  rec.onresult = e=>{
     mic.classList.remove("listening");
     analyze(e.results[0][0].transcript);
   };
-  rec.onerror=()=>{
+
+  rec.onerror = ()=>{
     mic.classList.remove("listening");
-    type("Mikrofon erişimi reddedildi. Yazı ile deneyebilirsin.");
+    write("Mikrofon erişimi reddedildi. Yazı ile deneyebilirsin.");
   };
 }
 </script>
