@@ -16,19 +16,31 @@ body{
 h1{margin-top:20px;color:#38bdf8}
 
 #mic{
-  width:120px;height:120px;
+  width:110px;height:110px;
   border-radius:50%;
-  margin:30px auto;
+  margin:20px auto;
   background:linear-gradient(145deg,#0ea5e9,#0369a1);
   display:flex;align-items:center;justify-content:center;
   font-size:48px;cursor:pointer;
-  box-shadow:0 0 25px #38bdf8;
-  animation:pulse 2s infinite;
+  box-shadow:0 0 20px #38bdf8;
+}
+.listening{
+  animation:pulse 1.2s infinite;
 }
 @keyframes pulse{
-  0%{box-shadow:0 0 15px #38bdf8}
+  0%{box-shadow:0 0 10px #38bdf8}
   50%{box-shadow:0 0 40px #38bdf8}
-  100%{box-shadow:0 0 15px #38bdf8}
+  100%{box-shadow:0 0 10px #38bdf8}
+}
+
+input{
+  width:90%;
+  max-width:500px;
+  padding:14px;
+  border-radius:12px;
+  border:none;
+  font-size:16px;
+  margin-top:10px;
 }
 
 #result{
@@ -38,6 +50,7 @@ h1{margin-top:20px;color:#38bdf8}
   border-radius:14px;
   padding:20px;
   font-size:16px;
+  min-height:80px;
   box-shadow:inset 0 0 15px #38bdf855;
 }
 </style>
@@ -46,31 +59,34 @@ h1{margin-top:20px;color:#38bdf8}
 <body>
 
 <h1>🎙️ Sesli Stok Asistani</h1>
+
 <div id="mic">🎤</div>
-<div id="result">Mikrofona dokun ve konuş</div>
+
+<input id="manual" placeholder="Stok kodu veya ürün adı yaz ve Enter'a bas">
+
+<div id="result">Hazır.</div>
 
 <script>
-// ====== VERI (GOMULU) ======
+// ==== VERI (ORNEK – SENIN VERILERINLE GENISLETILECEK) ====
 const DATA = [
  {g:"HAMMADDE",k:"004070201",a:"AKBIBER TANE 25 KG PP CUVAL"},
  {g:"MAMUL",k:"0800223",a:"BAHARAT KIMYON 75 GR DESTAN"},
- {g:"AMBALAJ",k:"06005",a:"SANITA JOKER KUSUZUMU 126X380X133"},
+ {g:"AMBALAJ",k:"06005",a:"SANITA JOKER KUSUZUMU 126X380X133"}
 ];
 
-// ====== TURKCE SAYI ======
+// ==== SAYI OKUMA ====
 const ones=["","bir","iki","uc","dort","bes","alti","yedi","sekiz","dokuz"];
 const tens=["","on","yirmi","otuz","kirk","elli","altmis","yetmis","seksen","doksan"];
 
 function readNumber(n){
-  if(n==="0") return "sifir";
   let s="";
-  if(n.length===3){
-    if(n[0]!=="0") s+=ones[n[0]]+" yuz ";
-    n=n.slice(1);
-  }
   if(n.length===2){
-    s+=tens[n[0]]+" ";
-    if(n[1]!=="0") s+=ones[n[1]];
+    if(n[0]==="0") s="sifir "+ones[n[1]];
+    else s=tens[n[0]]+(n[1]!=="0"?" "+ones[n[1]]:"");
+  }
+  if(n.length===3){
+    s=ones[n[0]]+" yuz";
+    if(n.slice(1)!=="00") s+=" "+readNumber(n.slice(1));
   }
   return s.trim();
 }
@@ -80,13 +96,10 @@ function readStockCode(code){
   for(let i=0;i<code.length;i+=2){
     groups.push(code.substring(i,i+2));
   }
-  return groups.map(g=>{
-    if(g.startsWith("0")) return "sifir "+ones[g[1]];
-    return readNumber(g);
-  }).join(" , ");
+  return groups.map(readNumber).join(" , ");
 }
 
-// ====== SES ======
+// ==== SES ====
 function speak(text){
   const u=new SpeechSynthesisUtterance(text);
   u.lang="tr-TR";
@@ -94,15 +107,26 @@ function speak(text){
   speechSynthesis.speak(u);
 }
 
-// ====== BENZERLIK ======
-function score(a,b){
-  a=a.toLowerCase();b=b.toLowerCase();
-  let c=0;
-  a.split(" ").forEach(w=>{ if(b.includes(w)) c++; });
-  return c;
+// ==== AKAN YAZI ====
+function typeText(el,text){
+  el.innerText="";
+  let i=0;
+  const t=setInterval(()=>{
+    el.innerText+=text[i];
+    i++;
+    if(i>=text.length) clearInterval(t);
+  },25);
 }
 
-// ====== ANALIZ ======
+// ==== BENZERLIK ====
+function score(q,t){
+  q=q.toLowerCase();t=t.toLowerCase();
+  let s=0;
+  q.split(" ").forEach(w=>{ if(t.includes(w)) s++; });
+  return s;
+}
+
+// ==== ANALIZ ====
 function analyze(q){
   let best=null,bestScore=0;
   DATA.forEach(d=>{
@@ -111,29 +135,41 @@ function analyze(q){
     if(s>bestScore){best=d;bestScore=s;}
   });
   if(!best){
+    typeText(result,"Eşleşme bulunamadı.");
     speak("Eslesme bulunamadi");
     return;
   }
-  const spokenCode=readStockCode(best.k);
-  const text=`${best.g}. Stok kodu ${spokenCode}. Urun ${best.a}.`;
-  document.getElementById("result").innerText=text;
-  speak(text);
+  const spoken=readStockCode(best.k);
+  const txt=`${best.g}. Stok kodu ${spoken}. Urun: ${best.a}.`;
+  typeText(result,txt);
+  speak(txt);
 }
 
-// ====== SES TANIMA ======
+// ==== MANUEL GIRIS ====
+manual.addEventListener("keydown",e=>{
+  if(e.key==="Enter") analyze(e.target.value);
+});
+
+// ==== SES TANIMA ====
 const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-const rec=new R();
-rec.lang="tr-TR";
-
-document.getElementById("mic").onclick=()=>{
-  rec.start();
-  document.getElementById("result").innerText="Dinliyorum...";
-};
-
-rec.onresult=e=>{
-  const q=e.results[0][0].transcript;
-  analyze(q);
-};
+if(R){
+  const rec=new R();
+  rec.lang="tr-TR";
+  mic.onclick=()=>{
+    mic.classList.add("listening");
+    rec.start();
+  };
+  rec.onresult=e=>{
+    mic.classList.remove("listening");
+    analyze(e.results[0][0].transcript);
+  };
+  rec.onerror=()=>{
+    mic.classList.remove("listening");
+    typeText(result,"Mikrofon hatası. Yazı ile deneyebilirsin.");
+  };
+}else{
+  result.innerText="Tarayıcı ses tanımayı desteklemiyor.";
+}
 </script>
 
 </body>
