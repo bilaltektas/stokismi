@@ -2,140 +2,138 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Stok Bilgi Asistani</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sesli Stok Asistani</title>
+
 <style>
-    body {
-        margin: 0;
-        background: radial-gradient(circle at top, #0a0f2c, #000);
-        font-family: "Segoe UI", Arial, sans-serif;
-        color: #00f6ff;
-        overflow: hidden;
-    }
-    .panel {
-        width: 90%;
-        max-width: 1100px;
-        margin: 40px auto;
-        background: rgba(0,0,0,0.65);
-        border-radius: 18px;
-        box-shadow: 0 0 40px #00f6ff55;
-        padding: 30px;
-    }
-    h1 {
-        text-align: center;
-        font-weight: 600;
-        letter-spacing: 2px;
-        text-shadow: 0 0 15px #00f6ff;
-    }
-    input {
-        width: 100%;
-        padding: 18px;
-        margin-top: 25px;
-        border-radius: 12px;
-        border: none;
-        outline: none;
-        background: #020617;
-        color: #00f6ff;
-        font-size: 18px;
-        box-shadow: inset 0 0 12px #00f6ff55;
-    }
-    .response {
-        margin-top: 30px;
-        min-height: 90px;
-        padding: 20px;
-        border-radius: 14px;
-        background: #01091c;
-        box-shadow: inset 0 0 20px #00f6ff33;
-        font-size: 18px;
-        line-height: 1.5;
-    }
-    .wave {
-        margin-top: 20px;
-        height: 10px;
-        background: linear-gradient(90deg, transparent, #00f6ff, transparent);
-        animation: wave 1.2s infinite;
-    }
-    @keyframes wave {
-        0% {opacity: 0.2;}
-        50% {opacity: 1;}
-        100% {opacity: 0.2;}
-    }
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:radial-gradient(circle at top,#020617,#000);
+  color:#e0f2ff;
+  text-align:center;
+}
+h1{margin-top:20px;color:#38bdf8}
+
+#mic{
+  width:120px;height:120px;
+  border-radius:50%;
+  margin:30px auto;
+  background:linear-gradient(145deg,#0ea5e9,#0369a1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:48px;cursor:pointer;
+  box-shadow:0 0 25px #38bdf8;
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 15px #38bdf8}
+  50%{box-shadow:0 0 40px #38bdf8}
+  100%{box-shadow:0 0 15px #38bdf8}
+}
+
+#result{
+  max-width:500px;
+  margin:20px auto;
+  background:#020617;
+  border-radius:14px;
+  padding:20px;
+  font-size:16px;
+  box-shadow:inset 0 0 15px #38bdf855;
+}
 </style>
 </head>
+
 <body>
 
-<div class="panel">
-    <h1>STOK BİLGİ ASİSTANI</h1>
-    <input id="query" placeholder="Stok kodu, ürün adı veya soru yazın ve Enter'a basın">
-    <div class="wave"></div>
-    <div id="response" class="response"></div>
-</div>
+<h1>🎙️ Sesli Stok Asistani</h1>
+<div id="mic">🎤</div>
+<div id="result">Mikrofona dokun ve konuş</div>
 
 <script>
-/* ==== TÜM VERİLER GÖMÜLÜ ==== */
-const rawData = `
-HAMMADDE	002070201	ACI BIBER 100 LUK TUM 25 KG PP CUVAL
-HAMMADDE	004070201	AKBIBER TANE 25 KG PP CUVAL
-AMBALAJ	06005	SANITA JOKER KUSUZUMU 126X380X133
-YRDMALZM	0201071	METRO CHEF 3KG VANILYALI PUDING ETIKET
-YRDMALZM	0201072	METRO CHEF 3KG KAKAOLU PUDING ETIKET
-YRDMALZM	0201073	METRO CHEF 3KG MUZLU PUDING ETIKET
-YRDMALZM	0201074	METRO CHEF 3KG CILEKLI PUDING ETIKET
-AMBALAJ	157600200691	AREKS CAM OMK BASKISIZ 290X205X140
-AMBALAJ	157600200692	AREKS PET OMK BASKISIZ 210X195X220
-AMBALAJ	157600200693	AREKS OFSET KUTU OMK 12LI SISE
-`;
-// Not: Yukarıdaki blok, **senin gönderdiğin listenin tamamı ile birebir**
-// aynı mantıkta gömülüdür. İstersen tamamını tek parça halinde
-// sonraki mesajda aynen genişleterek tekrar verebilirim.
+// ====== VERI (GOMULU) ======
+const DATA = [
+ {g:"HAMMADDE",k:"004070201",a:"AKBIBER TANE 25 KG PP CUVAL"},
+ {g:"MAMUL",k:"0800223",a:"BAHARAT KIMYON 75 GR DESTAN"},
+ {g:"AMBALAJ",k:"06005",a:"SANITA JOKER KUSUZUMU 126X380X133"},
+];
 
-/* ==== PARSE ==== */
-const stocks = rawData.trim().split("\n").map(l => {
-    const p = l.split("\t");
-    let group = p[0];
-    if (group === "YRDMALZM") group = "YARDIMCI MALZEME";
-    return {
-        group,
-        code: p[1],
-        name: p.slice(2).join(" ")
-    };
-});
+// ====== TURKCE SAYI ======
+const ones=["","bir","iki","uc","dort","bes","alti","yedi","sekiz","dokuz"];
+const tens=["","on","yirmi","otuz","kirk","elli","altmis","yetmis","seksen","doksan"];
 
-/* ==== SES ==== */
-function speak(text) {
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "tr-TR";
-    speechSynthesis.cancel();
-    speechSynthesis.speak(u);
+function readNumber(n){
+  if(n==="0") return "sifir";
+  let s="";
+  if(n.length===3){
+    if(n[0]!=="0") s+=ones[n[0]]+" yuz ";
+    n=n.slice(1);
+  }
+  if(n.length===2){
+    s+=tens[n[0]]+" ";
+    if(n[1]!=="0") s+=ones[n[1]];
+  }
+  return s.trim();
 }
 
-/* ==== ARAMA ==== */
-function findAnswer(q) {
-    q = q.toLowerCase();
-
-    // Kod sorusu
-    const byCode = stocks.find(s => q.includes(s.code));
-    if (byCode) {
-        return `${byCode.group}, ${byCode.name}`;
-    }
-
-    // İsim sorusu
-    let best = stocks.find(s => q.includes(s.name.toLowerCase().split(" ")[0]));
-    if (best) {
-        return `${best.group} stok kodu: ${best.code}`;
-    }
-
-    return "Bunu mu demek istediniz? Lutfen biraz daha acik sorar misiniz?";
+function readStockCode(code){
+  let groups=[];
+  for(let i=0;i<code.length;i+=2){
+    groups.push(code.substring(i,i+2));
+  }
+  return groups.map(g=>{
+    if(g.startsWith("0")) return "sifir "+ones[g[1]];
+    return readNumber(g);
+  }).join(" , ");
 }
 
-/* ==== INPUT ==== */
-document.getElementById("query").addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-        const q = e.target.value;
-        const ans = findAnswer(q);
-        document.getElementById("response").innerText = ans;
-        speak(ans);
-    }
-});
+// ====== SES ======
+function speak(text){
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="tr-TR";
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+// ====== BENZERLIK ======
+function score(a,b){
+  a=a.toLowerCase();b=b.toLowerCase();
+  let c=0;
+  a.split(" ").forEach(w=>{ if(b.includes(w)) c++; });
+  return c;
+}
+
+// ====== ANALIZ ======
+function analyze(q){
+  let best=null,bestScore=0;
+  DATA.forEach(d=>{
+    let s=score(q,d.a);
+    if(q.includes(d.k)) s+=5;
+    if(s>bestScore){best=d;bestScore=s;}
+  });
+  if(!best){
+    speak("Eslesme bulunamadi");
+    return;
+  }
+  const spokenCode=readStockCode(best.k);
+  const text=`${best.g}. Stok kodu ${spokenCode}. Urun ${best.a}.`;
+  document.getElementById("result").innerText=text;
+  speak(text);
+}
+
+// ====== SES TANIMA ======
+const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+const rec=new R();
+rec.lang="tr-TR";
+
+document.getElementById("mic").onclick=()=>{
+  rec.start();
+  document.getElementById("result").innerText="Dinliyorum...";
+};
+
+rec.onresult=e=>{
+  const q=e.results[0][0].transcript;
+  analyze(q);
+};
 </script>
 
 </body>
