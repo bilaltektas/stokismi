@@ -3,103 +3,142 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sesli Stok Asistani</title>
+<title>AI Stok Bilgi Asistani</title>
 
 <style>
+:root{
+  --neon:#22d3ee;
+  --dark:#020617;
+}
 body{
   margin:0;
-  font-family:Arial, sans-serif;
+  font-family:Inter,Arial,sans-serif;
   background:radial-gradient(circle at top,#020617,#000);
-  color:#e0f2ff;
-  text-align:center;
+  color:#e6f6ff;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
 }
-h1{margin-top:20px;color:#38bdf8}
-
-#mic{
-  width:110px;height:110px;
+.app{
+  width:100%;
+  max-width:520px;
+  padding:22px;
+}
+h1{
+  text-align:center;
+  font-weight:600;
+  letter-spacing:1px;
+  color:var(--neon);
+  text-shadow:0 0 20px var(--neon);
+}
+.mic{
+  width:120px;height:120px;
   border-radius:50%;
   margin:20px auto;
   background:linear-gradient(145deg,#0ea5e9,#0369a1);
   display:flex;align-items:center;justify-content:center;
-  font-size:48px;cursor:pointer;
-  box-shadow:0 0 20px #38bdf8;
+  font-size:52px;
+  cursor:pointer;
+  box-shadow:0 0 35px #22d3ee;
 }
-.listening{
-  animation:pulse 1.2s infinite;
+.mic.listening{
+  animation:pulse 1.1s infinite;
 }
 @keyframes pulse{
-  0%{box-shadow:0 0 10px #38bdf8}
-  50%{box-shadow:0 0 40px #38bdf8}
-  100%{box-shadow:0 0 10px #38bdf8}
+  0%{box-shadow:0 0 20px var(--neon)}
+  50%{box-shadow:0 0 55px var(--neon)}
+  100%{box-shadow:0 0 20px var(--neon)}
 }
-
 input{
-  width:90%;
-  max-width:500px;
-  padding:14px;
-  border-radius:12px;
+  width:100%;
+  padding:16px;
+  border-radius:14px;
   border:none;
   font-size:16px;
-  margin-top:10px;
-}
-
-#result{
-  max-width:500px;
-  margin:20px auto;
   background:#020617;
-  border-radius:14px;
-  padding:20px;
+  color:#e6f6ff;
+  box-shadow:inset 0 0 14px #22d3ee55;
+}
+.result{
+  margin-top:20px;
+  min-height:120px;
+  padding:18px;
+  border-radius:16px;
+  background:#020617;
+  box-shadow:inset 0 0 18px #22d3ee55;
   font-size:16px;
-  min-height:80px;
-  box-shadow:inset 0 0 15px #38bdf855;
+  line-height:1.5;
+}
+.footer{
+  margin-top:12px;
+  font-size:12px;
+  color:#9ac;
+  text-align:center;
 }
 </style>
 </head>
 
 <body>
+<div class="app">
+  <h1>🎙️ AI Stok Bilgi Asistani</h1>
 
-<h1>🎙️ Sesli Stok Asistani</h1>
+  <div id="mic" class="mic">🎤</div>
 
-<div id="mic">🎤</div>
+  <input id="manual" placeholder="Stok kodu, ürün adı veya soru yaz ve Enter'a bas">
 
-<input id="manual" placeholder="Stok kodu veya ürün adı yaz ve Enter'a bas">
+  <div id="result" class="result">Hazır. Konuşabilir veya yazabilirsin.</div>
 
-<div id="result">Hazır.</div>
+  <div class="footer">Sesli + Akıllı Stok Analizi</div>
+</div>
 
 <script>
-// ==== VERI (ORNEK – SENIN VERILERINLE GENISLETILECEK) ====
+// ================== VERI (GOMULU) ==================
 const DATA = [
  {g:"HAMMADDE",k:"004070201",a:"AKBIBER TANE 25 KG PP CUVAL"},
  {g:"MAMUL",k:"0800223",a:"BAHARAT KIMYON 75 GR DESTAN"},
  {g:"AMBALAJ",k:"06005",a:"SANITA JOKER KUSUZUMU 126X380X133"}
 ];
 
-// ==== SAYI OKUMA ====
+// ================== SAYI OKUMA ==================
 const ones=["","bir","iki","uc","dort","bes","alti","yedi","sekiz","dokuz"];
 const tens=["","on","yirmi","otuz","kirk","elli","altmis","yetmis","seksen","doksan"];
 
-function readNumber(n){
+function readTwo(n){
+  if(n[0]==="0") return "sifir "+ones[n[1]];
+  return tens[n[0]]+(n[1]!=="0"?" "+ones[n[1]]:"");
+}
+function readThree(n){
   let s="";
-  if(n.length===2){
-    if(n[0]==="0") s="sifir "+ones[n[1]];
-    else s=tens[n[0]]+(n[1]!=="0"?" "+ones[n[1]]:"");
-  }
-  if(n.length===3){
-    s=ones[n[0]]+" yuz";
-    if(n.slice(1)!=="00") s+=" "+readNumber(n.slice(1));
-  }
+  if(n[0]!=="0") s+=ones[n[0]]+" yuz ";
+  if(n.slice(1)!=="00") s+=readTwo(n.slice(1));
   return s.trim();
 }
-
 function readStockCode(code){
-  let groups=[];
-  for(let i=0;i<code.length;i+=2){
-    groups.push(code.substring(i,i+2));
+  let out=[];
+  let i=0;
+  while(i<code.length){
+    if(code.length-i>=3 && i>=4){
+      out.push(readThree(code.slice(i,i+3)));
+      i+=3;
+    }else{
+      out.push(readTwo(code.slice(i,i+2)));
+      i+=2;
+    }
   }
-  return groups.map(readNumber).join(" , ");
+  return out.join(" , ");
 }
 
-// ==== SES ====
+// ================== OLCU OKUMA ==================
+function readMeasure(t){
+  const m=t.match(/(\d{2,4})\s*[xX*]\s*(\d{2,4})(?:\s*[xX*]\s*(\d{2,4}))?/);
+  if(!m) return "";
+  const say=(n)=>n.split("").map(c=>ones[c]||tens[c]||c).join(" ");
+  return m[3]
+    ? `${readThree(m[1])} carpı ${readThree(m[2])} carpı ${readThree(m[3])}`
+    : `${readThree(m[1])} carpı ${readThree(m[2])}`;
+}
+
+// ================== SES ==================
 function speak(text){
   const u=new SpeechSynthesisUtterance(text);
   u.lang="tr-TR";
@@ -107,7 +146,7 @@ function speak(text){
   speechSynthesis.speak(u);
 }
 
-// ==== AKAN YAZI ====
+// ================== AKAN YAZI ==================
 function typeText(el,text){
   el.innerText="";
   let i=0;
@@ -115,10 +154,10 @@ function typeText(el,text){
     el.innerText+=text[i];
     i++;
     if(i>=text.length) clearInterval(t);
-  },25);
+  },18);
 }
 
-// ==== BENZERLIK ====
+// ================== FUZZY ==================
 function score(q,t){
   q=q.toLowerCase();t=t.toLowerCase();
   let s=0;
@@ -126,31 +165,32 @@ function score(q,t){
   return s;
 }
 
-// ==== ANALIZ ====
+// ================== ANALIZ ==================
 function analyze(q){
   let best=null,bestScore=0;
   DATA.forEach(d=>{
     let s=score(q,d.a);
-    if(q.includes(d.k)) s+=5;
+    if(q.includes(d.k)) s+=10;
     if(s>bestScore){best=d;bestScore=s;}
   });
   if(!best){
-    typeText(result,"Eşleşme bulunamadı.");
-    speak("Eslesme bulunamadi");
+    typeText(result,"En yakin eslesme bulunamadi.");
+    speak("En yakin eslesme bulunamadi.");
     return;
   }
-  const spoken=readStockCode(best.k);
-  const txt=`${best.g}. Stok kodu ${spoken}. Urun: ${best.a}.`;
-  typeText(result,txt);
-  speak(txt);
+  const code=readStockCode(best.k);
+  const measure=readMeasure(best.a);
+  const text=`${best.g}. Stok kodu ${code}. Urun ${best.a}. ${measure? "Olculer "+measure+".":""}`;
+  typeText(result,text);
+  speak(text);
 }
 
-// ==== MANUEL GIRIS ====
+// ================== MANUEL ==================
 manual.addEventListener("keydown",e=>{
   if(e.key==="Enter") analyze(e.target.value);
 });
 
-// ==== SES TANIMA ====
+// ================== MIKROFON ==================
 const R=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(R){
   const rec=new R();
@@ -165,12 +205,11 @@ if(R){
   };
   rec.onerror=()=>{
     mic.classList.remove("listening");
-    typeText(result,"Mikrofon hatası. Yazı ile deneyebilirsin.");
+    typeText(result,"Mikrofon engellendi. Yazı ile devam edebilirsin.");
   };
 }else{
-  result.innerText="Tarayıcı ses tanımayı desteklemiyor.";
+  typeText(result,"Tarayici ses tanimayi desteklemiyor.");
 }
 </script>
-
 </body>
 </html>
