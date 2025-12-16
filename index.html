@@ -2,76 +2,52 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Türkçe Sesli Stok Asistanı</title>
+<title>Sesli Stok Asistanı</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #0f172a;
-    color: #e5e7eb;
-    margin: 0;
-    padding: 0;
+body{
+  font-family: Arial, sans-serif;
+  background:#0f172a;
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+  margin:0;
 }
-.container {
-    max-width: 900px;
-    margin: auto;
-    padding: 20px;
+#mic{
+  width:120px;height:120px;
+  border-radius:50%;
+  background:#ef4444;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:40px;
+  cursor:pointer;
+  animation:pulse 1.5s infinite;
 }
-button {
-    background: #22c55e;
-    border: none;
-    padding: 15px 25px;
-    font-size: 18px;
-    border-radius: 10px;
-    cursor: pointer;
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(239,68,68,.6)}
+  70%{box-shadow:0 0 0 30px rgba(239,68,68,0)}
 }
-button:active {
-    transform: scale(0.97);
-}
-#log {
-    margin-top: 20px;
-    background: #020617;
-    padding: 15px;
-    border-radius: 10px;
-    min-height: 120px;
-}
-.avatar {
-    width: 160px;
-    height: 160px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #38bdf8, #1e293b);
-    margin: 20px auto;
-    animation: idle 3s infinite;
-}
-.speaking {
-    animation: speak 0.25s infinite alternate;
-}
-@keyframes idle {
-    from { transform: scale(1); }
-    to { transform: scale(1.03); }
-}
-@keyframes speak {
-    from { transform: scale(1); }
-    to { transform: scale(1.1); }
-}
+#q,#a{margin-top:20px;text-align:center;max-width:95%}
+#avatar{font-size:60px;margin-bottom:10px}
 </style>
 </head>
 
 <body>
-<div class="container">
-    <h2>🎙️ Türkçe Sesli Stok Asistanı</h2>
 
-    <div class="avatar" id="avatar"></div>
-
-    <button onclick="startListening()">Dinlemeyi Başlat</button>
-
-    <div id="log"></div>
-</div>
+<div id="avatar">🧑‍💼</div>
+<div id="mic">🎙️</div>
+<div id="q"></div>
+<div id="a"></div>
 
 <script>
-/* =======================
-   MAMUL	00201306090	ACI BİBER 100 LUK TÜM  100 G ORTA PET (K332)
+/* =====================================================
+  1️⃣ STOK VERİLERİ (SEN BURAYA EKLE)
+MAMUL	00201306090	ACI BİBER 100 LUK TÜM  100 G ORTA PET (K332)
 MAMUL	00201307106	ACI BİBER 100 LUK TÜM  1000 G ŞEFFAF
 MAMUL	00201337038	ACI BİBER 100 LUK TÜM  400 G AVOS
 HAMMADDE	002070201	ACI BİBER 100 LUK TÜM 25 KG PP ÇUVAL
@@ -2339,130 +2315,133 @@ ALSAT	STERİLİZASYON	STERİLİZASYON BEDELİ
 MAMUL	T010	İSOT
 HAMMADDE	T025	TATLI SAPSIZ KIRIK
 
-======================= */
-const STOK_VERI = [
+===================================================== */
+const stoklar = [
+/*
+ÖRNEK:
 {
-    tip: "mamül",
-    kod: "00201306090",
-    ad: "ACI BİBER 100 LUK TÜM 100 G ORTA PET (K332)",
-    okumaKod: "çift sıfır, iki yüz bir, üç yüz altı, sıfır doksan",
-    okumaAd: "acı biber yüzlük tüm yüz gram orta pet ka üç yüz otuz iki",
-    ozellik: {
-        gram: "100 gram",
-        ambalaj: "pet",
-        kod: "K332"
-    }
-},
-{
-    tip: "ambalaj",
-    kod: "0551",
-    ad: "SANİTA (OPP-BOBİN) JOKER (542 X 470) - 2 KG",
-    okumaKod: "sıfır beş, elli bir",
-    okumaAd: "sanita joker bobini beş yüz kırk iki çarpı dört yüz yetmiş ölçüsünde iki kilogram",
-    ozellik: {
-        kilo: "2 kilogram",
-        olcu: "542 x 470"
-    }
+  tip:"HAMMADDE",
+  kod:"004070201",
+  ad:"AKBİBER TANE 25 KG PP ÇUVAL"
 }
+*/
 ];
 
-/* =======================
-   TÜRKÇE SAYI OKUMA
-======================= */
-const sayilar = {
-0:"sıfır",1:"bir",2:"iki",3:"üç",4:"dört",5:"beş",6:"altı",7:"yedi",8:"sekiz",9:"dokuz",
-10:"on",20:"yirmi",30:"otuz",40:"kırk",50:"elli",60:"altmış",70:"yetmiş",80:"seksen",90:"doksan"
-};
+/* =====================================================
+  2️⃣ SAYI OKUMA MOTORU (NETSİS UYUMLU)
+===================================================== */
+const birler=["sıfır","bir","iki","üç","dört","beş","altı","yedi","sekiz","dokuz"];
+const onlar=["","on","yirmi","otuz","kırk","elli","altmış","yetmiş","seksen","doksan"];
 
-function sayiOku(n) {
-    n = parseInt(n);
-    if (n < 10) return sayilar[n];
-    if (n < 100) {
-        let o = Math.floor(n/10)*10;
-        let b = n%10;
-        return sayilar[o] + (b ? " " + sayilar[b] : "");
-    }
-    if (n < 1000) {
-        let y = Math.floor(n/100);
-        let k = n%100;
-        return (y===1?"yüz":sayilar[y]+" yüz") + (k?" "+sayiOku(k):"");
-    }
-    return n.toString();
+function ucHaneOku(n){
+ n=n.padStart(3,"0");
+ let [a,b,c]=n.split("").map(Number);
+ let t="";
+ if(a>0)t+=(a===1?"yüz":birler[a]+" yüz");
+ if(b>0)t+=" "+onlar[b];
+ if(c>0)t+=" "+birler[c];
+ return t.trim();
+}
+function ikiliOku(n){
+ if(n==="00")return"çift sıfır";
+ if(n[0]==="0")return"sıfır "+birler[n[1]];
+ return onlar[n[0]]+(n[1]!=="0"?" "+birler[n[1]]:"");
+}
+function kodOku(kod){
+ let p=[];
+ p.push(ikiliOku(kod.slice(0,2)));
+ let k=kod.slice(2);
+ for(let i=0;i<k.length;i+=3){
+  p.push(ucHaneOku(k.slice(i,i+3)));
+ }
+ return p.join(" , ");
 }
 
-/* =======================
-   SESLİ KONUŞMA
-======================= */
-function speak(text) {
-    const avatar = document.getElementById("avatar");
-    avatar.classList.add("speaking");
-
-    const msg = new SpeechSynthesisUtterance(text);
-    msg.lang = "tr-TR";
-    msg.rate = 0.9;
-    msg.onend = () => avatar.classList.remove("speaking");
-    speechSynthesis.speak(msg);
+/* =====================================================
+  3️⃣ STOK ADI NORMALİZASYON
+===================================================== */
+function adOku(ad){
+ return ad.toLowerCase()
+ .replace("öğt.","öğütülmüş")
+ .replace("b.steril","bakteriyel steril")
+ .replace(/(\d+)\s*kg/g,"$1 kilogram")
+ .replace(/(\d+)\s*g/g,"$1 gram")
+ .replace(/x/g," çarpı ")
+ .replace(/\s+/g," ");
 }
 
-/* =======================
-   METİN BENZERLİĞİ (YANLIŞ KOD TAHMİN)
-======================= */
-function benzerlik(a,b){
-    let same = 0;
-    a = a.toLowerCase(); b = b.toLowerCase();
-    for(let c of a){ if(b.includes(c)) same++; }
-    return same / Math.max(a.length,b.length);
+/* =====================================================
+  4️⃣ KONUŞMA
+===================================================== */
+function konus(m){
+ const s=new SpeechSynthesisUtterance(m);
+ s.lang="tr-TR";
+ speechSynthesis.speak(s);
 }
 
-/* =======================
-   SORU ANALİZİ
-======================= */
-function cevapla(metin) {
-    metin = metin.toLowerCase();
+/* =====================================================
+  5️⃣ SORU ANALİZİ (KURALCI)
+===================================================== */
+function cevapla(text){
+ text=text.toLowerCase();
+ document.getElementById("q").innerText="Soru: "+text;
 
-    let enYakin = null;
-    let skor = 0;
+ // koddan rakam çek
+ let kod=text.replace(/[^0-9]/g,"");
 
-    STOK_VERI.forEach(s => {
-        let k = benzerlik(metin, s.kod);
-        let a = benzerlik(metin, s.ad);
-        let max = Math.max(k,a);
-        if (max > skor) {
-            skor = max;
-            enYakin = s;
-        }
-    });
+ let stok=null;
+ if(kod){
+  stok=stoklar.find(s=>s.kod===kod);
+ }
 
-    if (!enYakin || skor < 0.2) {
-        speak("Stok bulunamadı. Lütfen tekrar söyleyin.");
-        return;
-    }
+ // açıklamadan bul
+ if(!stok){
+  stok=stoklar.find(s=>text.includes(s.ad.toLowerCase().split(" ")[0]));
+ }
 
-    if (metin.includes("ölçü")) {
-        speak(enYakin.okumaAd);
-    } else if (metin.match(/\d/)) {
-        speak(enYakin.okumaAd);
-    } else {
-        speak(enYakin.tip + " kodu " + enYakin.okumaKod);
-    }
+ if(!stok){
+  konus("Bu bilgiye ait kesin bir stok bulunamadı.");
+  document.getElementById("a").innerText="Sonuç bulunamadı";
+  return;
+ }
+
+ let cevap="";
+
+ if(text.includes("kodu")){
+  cevap=`${stok.tip} stok kodu ${kodOku(stok.kod)}`;
+ }
+ else if(text.includes("adı")||text.includes("açıklama")){
+  cevap=`${stok.tip} ${adOku(stok.ad)}`;
+ }
+ else if(text.includes("kaç kilo")||text.includes("kilogram")){
+  let m=stok.ad.match(/(\d+)\s*kg/i);
+  cevap=m?`${m[1]} kilogram`:"kilogram bilgisi yok";
+ }
+ else if(text.includes("kaç gram")||text.includes("gram")){
+  let m=stok.ad.match(/(\d+)\s*g/i);
+  cevap=m?`${m[1]} gram`:"gram bilgisi yok";
+ }
+ else if(text.includes("ölçü")){
+  let m=stok.ad.match(/\((.*?)\)/);
+  cevap=m?`ölçüleri ${m[1].replace(/x/gi," çarpı ")}`:"ölçü bilgisi yok";
+ }
+ else{
+  cevap=`${stok.tip} ${adOku(stok.ad)}. Stok kodu ${kodOku(stok.kod)}`;
+ }
+
+ document.getElementById("a").innerText="Cevap: "+cevap;
+ konus(cevap);
 }
 
-/* =======================
-   SESLİ DİNLEME
-======================= */
-function startListening() {
-    const log = document.getElementById("log");
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const rec = new SR();
-    rec.lang = "tr-TR";
-    rec.start();
+/* =====================================================
+  6️⃣ MİKROFON
+===================================================== */
+const r=new (window.SpeechRecognition||window.webkitSpeechRecognition)();
+r.lang="tr-TR";
+r.onresult=e=>cevapla(e.results[0][0].transcript);
 
-    rec.onresult = e => {
-        let text = e.results[0][0].transcript;
-        log.innerHTML += "<div><b>Sen:</b> " + text + "</div>";
-        cevapla(text);
-    };
-}
+document.getElementById("mic").onclick=()=>r.start();
 </script>
+
 </body>
 </html>
