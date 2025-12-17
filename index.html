@@ -2,43 +2,48 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<title>Netsis Sesli Stok Okuma</title>
+<title>AI Neon Stok Asistanı</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 body {
-  font-family: Arial;
-  background: #f2f4f7;
-  padding: 40px;
+  margin:0; height:100vh;
+  background:radial-gradient(circle at top,#0f2027,#000);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Orbitron',sans-serif; color:#00fff7;
 }
-.kutu {
-  background: #fff;
-  padding: 30px;
-  max-width: 600px;
-  margin: auto;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+.panel {
+  width:560px; padding:40px;
+  background:rgba(0,0,0,.65);
+  border-radius:16px;
+  box-shadow:0 0 25px #00fff7, inset 0 0 30px rgba(0,255,247,.2);
+  text-align:center;
 }
+h1 { text-shadow:0 0 12px #00fff7; }
 button {
-  padding: 12px 20px;
-  font-size: 16px;
-  cursor: pointer;
+  margin-top:20px;
+  background:linear-gradient(135deg,#00fff7,#0066ff);
+  border:none; padding:16px 40px;
+  font-size:18px; border-radius:40px;
+  cursor:pointer; font-weight:bold;
+  box-shadow:0 0 25px #00fff7;
 }
-#sonuc {
-  margin-top: 20px;
-  font-size: 18px;
-  font-weight: bold;
-}
+#ekran { margin-top:25px; font-size:18px; }
 </style>
 </head>
-<body>
 
-<div class="kutu">
-  <h2>🎙️ Sesli Stok Sorgulama</h2>
-  <button onclick="dinle()">Stok Kodunu Söyle</button>
-  <div id="sonuc"></div>
+<body>
+<div class="panel">
+  <h1>AI STOK ASİSTANI</h1>
+  <div>🎙️ Stok adını söyle, kodu okuyayım</div>
+  <button onclick="dinle()">Dinlemeye Başla</button>
+  <div id="ekran"></div>
 </div>
 
 <script>
 const hamListe = `
+KAPAK025	63 MM LAMİNE FOLYOLU SİYAH (13/1) KAPAK
+KAPAK026	63 MM LİNEER FOLYOLU MAVİ (13/1) KAPAK
+KAPAK027	38 MM SERAMİK
 Stok Grubu	Stok Kodu	Stok İsmi
 MAMUL	00201306090	ACI BİBER 100 LUK TÜM  100 G ORTA PET (K332)
 MAMUL	00201307106	ACI BİBER 100 LUK TÜM  1000 G ŞEFFAF
@@ -2307,20 +2312,34 @@ AMBALAJ	SLEEVE	83*60 MM BASKISIZ EMN. BANDI
 ALSAT	STERİLİZASYON	STERİLİZASYON BEDELİ
 MAMUL	T010	İSOT
 HAMMADDE	T025	TATLI SAPSIZ KIRIK
+
 `;
 
-function stoklariHazirla(metin) {
-  const map = {};
-  metin.trim().split("\n").forEach(s => {
-    const p = s.trim().split(/\s+/);
-    const kod = p.shift();
-    const ad = p.join(" ");
-    if (kod && ad) map[kod.toUpperCase()] = ad;
-  });
-  return map;
+const stoklar = [];
+hamListe.trim().split("\n").forEach(s => {
+  const p = s.trim().split(/\s+/);
+  const kod = p.shift().toUpperCase();
+  const ad = p.join(" ").toUpperCase();
+  stoklar.push({ kod, ad });
+});
+
+function normalize(metin) {
+  const map = {
+    "SIFIR":"0","BIR":"1","IKI":"2","UC":"3","DORT":"4",
+    "BES":"5","ALTI":"6","YEDI":"7","SEKIZ":"8","DOKUZ":"9"
+  };
+  let t = metin.toUpperCase();
+  for (const k in map) t = t.replaceAll(k, map[k]);
+  return t.replace(/[^A-Z0-9 ]/g,"");
 }
 
-const stoklar = stoklariHazirla(hamListe);
+function skorla(konusma, stokAdi) {
+  let skor = 0;
+  konusma.split(" ").forEach(k => {
+    if (stokAdi.includes(k) && k.length > 2) skor++;
+  });
+  return skor;
+}
 
 function dinle() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2329,15 +2348,24 @@ function dinle() {
   rec.start();
 
   rec.onresult = e => {
-    const konusma = e.results[0][0].transcript.toUpperCase();
-    const temiz = konusma.replace(/\s+/g, "");
+    const konusma = normalize(e.results[0][0].transcript);
+    let enIyi = null, maxSkor = 0;
 
-    if (stoklar[temiz]) {
-      document.getElementById("sonuc").innerText = stoklar[temiz];
-      oku(stoklar[temiz]);
+    stoklar.forEach(s => {
+      const sSkor = skorla(konusma, s.ad);
+      if (sSkor > maxSkor) {
+        maxSkor = sSkor;
+        enIyi = s;
+      }
+    });
+
+    if (enIyi && maxSkor > 0) {
+      document.getElementById("ekran").innerText =
+        "STOK KODU: " + enIyi.kod;
+      oku("Stok kodu " + enIyi.kod);
     } else {
+      document.getElementById("ekran").innerText = "Stok bulunamadı";
       oku("Stok bulunamadı");
-      document.getElementById("sonuc").innerText = "Stok bulunamadı";
     }
   };
 }
@@ -2348,6 +2376,5 @@ function oku(metin) {
   speechSynthesis.speak(s);
 }
 </script>
-
 </body>
 </html>
